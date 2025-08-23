@@ -49,17 +49,9 @@ export default {
   },
 
   actions: {
-    /**
-     * This action register a User on the platform,
-     * using the API and creates the observer for the User's metadata in the db
-     * @action signup
-     * @param {object} payload - Data to create a new User
-     * @param {string} payload.email - the User email
-     * @param {string} payload.password - the User password
-     * @returns {void}
-     */
     async signup({ commit }, payload) {
       commit('setLoading', true)
+      commit('clearError')
       try {
         const { user } = await authController.signUp(payload.email, payload.password)
         await userController.create({
@@ -68,9 +60,10 @@ export default {
         })
         const dbUser = await userController.getById(user.uid)
         commit('SET_USER', dbUser)
+        commit('clearError')
       } catch (err) {
         commit('setError', { errorCode: 'FIREBASE', message: err.code })
-        throw err // Rethrow the error so the caller knows signup failed
+        throw err
       } finally {
         commit('setLoading', false)
       }
@@ -78,11 +71,13 @@ export default {
 
     async signin({ commit }, payload) {
       commit('setLoading', true)
+      commit('clearError')
       try {
         const { user } = await authController.signIn(payload.email, payload.password)
         if (user) {
           const dbUser = await userController.getById(user.uid)
           commit('SET_USER', dbUser)
+          commit('clearError')
         }
       } catch (err) {
         if (err.code === 'auth/invalid-email') {
@@ -108,12 +103,13 @@ export default {
     },
 
     /**
- * Handle Google Authentication
- * @action signInWithGoogle
- * @returns {void}
- */
+     * Handle Google Authentication
+     * @action signInWithGoogle
+     * @returns {void}
+     */
     async signInWithGoogle({ commit }) {
       commit('setLoading', true)
+      commit('clearError')
       try {
         const { user } = await authController.signInWithGoogle()
 
@@ -139,6 +135,7 @@ export default {
         }
 
         commit('SET_USER', dbUser)
+        commit('clearError')
       } catch (err) {
         commit('setError', {
           errorCode: 'FIREBASE',
@@ -151,9 +148,11 @@ export default {
     },
 
     async logout({ commit }) {
+      commit('clearError')
       try {
         await authController.signOut()
         commit('SET_USER', null)
+        commit('clearError')
       } catch (err) {
         console.error(err)
         commit('setError', { errorCode: 'FIREBASE', message: err.code || 'Error during logout' })
@@ -163,12 +162,14 @@ export default {
     },
 
     async autoSignIn({ commit }) {
+      commit('clearError')
       try {
         const user = await authController.autoSignIn()
         if (!user) return
 
         const dbUser = await userController.getById(user.uid)
         commit('SET_USER', dbUser)
+        commit('clearError')
       } catch (e) {
         console.error(e)
         commit('setError', { errorCode: 'FIREBASE', message: e.code || 'Error during auto sign in' })
@@ -177,14 +178,15 @@ export default {
 
     async resetPassword({ commit }, payload) {
       commit('setLoading', true)
+      commit('clearError')
       try {
         await authController.resetPassword(payload.email)
-        //console.log("If this email is registered, you'll receive a reset link")
+        commit('clearError')
       } catch (err) {
         if (err.code === 'auth/invalid-email') {
-          console.error('Error: Invalid email format')
+          commit('setError', { errorCode: 'FIREBASE', message: 'Invalid email format' })
         } else {
-          console.error('Error sending password reset email:', err.message)
+          commit('setError', { errorCode: 'FIREBASE', message: err.message })
         }
       } finally {
         commit('setLoading', false)
